@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "ChytrejsiObec Setup",
+        "description": "Configure your ChytrejsiObec integration",
+        "data": {
+          "api_token": "API Token (e.g., townname.chytrejsiobec.cz)",
+          "name": "Integration Name",
+          "device_classes": "Device Classes (comma-separated)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to ChytrejsiObec API",
+      "invalid_auth": "Invalid API token",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "This API token is already configured"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "ChytrejsiObec Setup",
+        "description": "Enter your town's ChytrejsiObec API token",
+        "data": {
+          "api_token": "API Token",
+          "name": "Name",
+          "device_classes": "Device Classes"
+        },
+        "data_description": {
+          "api_token": "Your town's subdomain (e.g., reka.chytrejsiobec.cz)",
+          "device_classes": "Types of devices to monitor (default: RainfallMeter,MeteoStation)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the API. Check your internet connection.",
+      "invalid_auth": "Invalid API token. Please check your town's subdomain.",
+      "unknown": "An unexpected error occurred. Please check the logs."
+    },
+    "abort": {
+      "already_configured": "This API token is already configured in Home Assistant."
+    }
+  }
+}
