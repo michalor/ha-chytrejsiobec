@@ -126,18 +126,33 @@ class ChytrejsiObecSensor(CoordinatorEntity, SensorEntity):
         self._attr_name = f"{device_name} {self._sensor_name}"
         
         # Set device info for grouping
+        # Try to resolve model from coordinator data; fall back to Unknown
+        model = "Unknown"
+        try:
+            device = next((d for d in coordinator.data if d.get("devID") == device_id), None)
+            if device:
+                model = device.get("model", "Unknown")
+        except Exception:
+            model = "Unknown"
+
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_id)},
             "name": device_name,
             "manufacturer": "ChytrejsiObec",
-            "model": coordinator.data[device_idx].get("model", "Unknown"),
+            "model": model,
         }
 
     @property
     def native_value(self):
         """Return the state of the sensor."""
         try:
-            device_data = self.coordinator.data[self._device_idx].get("data", {})
+            # Find device by devID to avoid relying on a static index
+            device = next((d for d in self.coordinator.data if d.get("devID") == self._device_id), None)
+            if not device:
+                _LOGGER.debug("Device with devID %s not found in coordinator data", self._device_id)
+                return None
+
+            device_data = device.get("data", {})
             value = device_data.get(self._key)
             
             # Handle timestamp conversion
@@ -175,7 +190,10 @@ class ChytrejsiObecSensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self):
         """Return additional attributes."""
         try:
-            device = self.coordinator.data[self._device_idx]
+            device = next((d for d in self.coordinator.data if d.get("devID") == self._device_id), None)
+            if not device:
+                return {}
+
             return {
                 "device_class": device.get("class"),
                 "model": device.get("model"),

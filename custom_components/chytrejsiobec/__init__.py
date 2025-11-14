@@ -6,6 +6,7 @@ from datetime import timedelta
 
 import aiohttp
 import async_timeout
+import asyncio
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
@@ -73,21 +74,64 @@ class ChytrejsiObecDataUpdateCoordinator(DataUpdateCoordinator):
             "Authorization": self.api_token,
             "User-Agent": "Home-Assistant",
         }
+        _LOGGER.debug("Fetching devices from %s with params: %s", API_URL, params)
+        _LOGGER.debug("Authorization header present: %s", bool(headers.get("Authorization")))
 
         try:
             async with async_timeout.timeout(10):
-                async with self.session.get(
-                    API_URL, params=params, headers=headers
-                ) as response:
-                    response.raise_for_status()
-                    data = await response.json()
-                    
+                async with self.session.get(API_URL, params=params, headers=headers) as response:
+                    _LOGGER.debug("HTTP response status: %s", response.status)
+
+                    # If HTTP error, try to get text for diagnostics
+                    if response.status >= 400:
+                        try:
+                            text = await response.text()
+                        except Exception:
+                            text = "<could not read response text>"
+                        _LOGGER.error(
+                            "API HTTP error %s when fetching devices: %s",
+                            response.status,
+                            text[:1000],
+                        )
+                        raise UpdateFailed(f"HTTP error {response.status}")
+
+                    # Parse JSON body
+                    try:
+                        data = await response.json()
+                    except Exception as err:
+                        # If JSON parsing fails, capture text for debugging
+                        text = await response.text()
+                        _LOGGER.error("Failed to parse JSON response: %s", text[:1000])
+                        raise UpdateFailed(f"Invalid JSON response: {err}")
+
+                    _LOGGER.debug(
+                        "API JSON status: %s; keys: %s",
+                        data.get("status"),
+                        list(data.keys()) if isinstance(data, dict) else type(data),
+                    )
+
                     if data.get("status") != "ok":
+                        _LOGGER.error("API returned error message: %s", data.get("err_msg"))
                         raise UpdateFailed(f"API returned error: {data.get('err_msg')}")
-                    
-                    return data.get("data", [])
-                    
+
+                    payload = data.get("data", [])
+                    if not payload:
+                        _LOGGER.warning(
+                            "API returned empty device list (device_classes=%s). This may indicate an issue.",
+                            self.device_classes,
+                        )
+
+                    return payload
+
+        except asyncio.TimeoutError:
+            _LOGGER.error("Timeout when fetching ChytrejsiObec data from %s", API_URL)
+            raise UpdateFailed("Timeout fetching data from API")
+        except aiohttp.ClientResponseError as err:
+            _LOGGER.error("Client response error: %s", err, exc_info=True)
+            raise UpdateFailed(f"Client response error: {err}")
         except aiohttp.ClientError as err:
+            _LOGGER.error("Error communicating with API: %s", err, exc_info=True)
             raise UpdateFailed(f"Error communicating with API: {err}")
-        except Exception as err:
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.exception("Unexpected error while fetching ChytrejsiObec data: %s", err)
             raise UpdateFailed(f"Unexpected error: {err}")
