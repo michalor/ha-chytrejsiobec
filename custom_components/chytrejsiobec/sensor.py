@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from datetime import datetime
 import logging
+from zoneinfo import ZoneInfo
+
+from homeassistant.util import dt as dt_util
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -157,10 +160,54 @@ class ChytrejsiObecSensor(CoordinatorEntity, SensorEntity):
             
             # Handle timestamp conversion
             if self._device_class == SensorDeviceClass.TIMESTAMP and value:
-                try:
-                    return datetime.fromisoformat(value.replace("Z", "+00:00"))
-                except (ValueError, AttributeError):
+                parsed = None
+
+                # Try common ISO parsing first (handles Z -> +00:00)
+                if isinstance(value, str):
+                    try:
+                        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                    except Exception:
+                        # Fallback to Home Assistant util parser
+                        try:
+                            parsed = dt_util.parse_datetime(value)
+                        except Exception:
+                            parsed = None
+
+                # If numeric timestamp (epoch seconds), convert
+                if parsed is None and isinstance(value, (int, float)):
+                    try:
+                        # Assume seconds since epoch
+                        parsed = datetime.fromtimestamp(float(value))
+                    except Exception:
+                        parsed = None
+
+                if parsed is None:
+                    _LOGGER.debug(
+                        "Sensor %s: could not parse timestamp value: %s",
+                        self._attr_unique_id,
+                        value,
+                    )
                     return None
+
+                # If parsed datetime is naive, assign Home Assistant timezone
+                if parsed.tzinfo is None:
+                    try:
+                        tz = ZoneInfo(self.hass.config.time_zone)
+                        parsed = parsed.replace(tzinfo=tz)
+                        _LOGGER.debug(
+                            "Sensor %s: assigned timezone %s to timestamp -> %s",
+                            self._attr_unique_id,
+                            self.hass.config.time_zone,
+                            parsed.isoformat(),
+                        )
+                    except Exception:
+                        _LOGGER.exception(
+                            "Sensor %s: failed to assign timezone to timestamp %s",
+                            self._attr_unique_id,
+                            value,
+                        )
+
+                return parsed
             
             return value
         except (IndexError, KeyError):
