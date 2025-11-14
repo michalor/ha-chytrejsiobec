@@ -164,4 +164,12 @@ MIT License - See LICENSE file for details
 
 ## Disclaimer
 
-This is an unofficial integration. It is not affiliated with or endorsed by ChytrejsiObec or any municipality.
+**This is an unofficial, community-developed integration.** It is not affiliated with, officially maintained by, or endorsed by [ChytrejsiObec](https://chytrejsiobec.cz/) or any municipality using their services.
+
+- This integration uses the publicly accessible ChytrejsiObec API
+- The integration is provided "as-is" without warranties
+- ChytrejsiObec is a registered trademark of its respective owners
+- All sensor data is provided by ChytrejsiObec platform
+- For official information and services, please visit [chytrejsiobec.cz](https://chytrejsiobec.cz/)
+
+If you are a representative of ChytrejsiObec and have concerns about this integration, please open an issue or contact the maintainer.
