@@ -149,10 +149,43 @@ class ChytrejsiObecSensor(CoordinatorEntity, SensorEntity):
     def native_value(self):
         """Return the state of the sensor."""
         try:
-            # Find device by devID to avoid relying on a static index
+            # Validate coordinator data
+            if not self.coordinator.data or not isinstance(self.coordinator.data, list):
+                _LOGGER.warning(
+                    "Sensor %s: coordinator.data is invalid (None or not a list)",
+                    self._attr_unique_id,
+                )
+                return None
+
+            # Try primary lookup by devID
             device = next((d for d in self.coordinator.data if d.get("devID") == self._device_id), None)
+            
+            # Fallback: try by index if devID lookup failed
+            if not device and self._device_idx < len(self.coordinator.data):
+                device = self.coordinator.data[self._device_idx]
+                if device.get("devID") != self._device_id:
+                    _LOGGER.debug(
+                        "Sensor %s: device at index %d has different devID (%s vs %s), rejecting",
+                        self._attr_unique_id,
+                        self._device_idx,
+                        device.get("devID"),
+                        self._device_id,
+                    )
+                    device = None
+                else:
+                    _LOGGER.debug(
+                        "Sensor %s: used fallback index %d after devID lookup failed",
+                        self._attr_unique_id,
+                        self._device_idx,
+                    )
+            
             if not device:
-                _LOGGER.debug("Device with devID %s not found in coordinator data", self._device_id)
+                _LOGGER.debug(
+                    "Sensor %s: device with devID %s not found (have %d devices)",
+                    self._attr_unique_id,
+                    self._device_id,
+                    len(self.coordinator.data),
+                )
                 return None
 
             device_data = device.get("data", {})
@@ -237,7 +270,18 @@ class ChytrejsiObecSensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self):
         """Return additional attributes."""
         try:
+            if not self.coordinator.data or not isinstance(self.coordinator.data, list):
+                return {}
+
+            # Try primary lookup by devID
             device = next((d for d in self.coordinator.data if d.get("devID") == self._device_id), None)
+            
+            # Fallback: try by index
+            if not device and self._device_idx < len(self.coordinator.data):
+                device = self.coordinator.data[self._device_idx]
+                if device.get("devID") != self._device_id:
+                    device = None
+            
             if not device:
                 return {}
 
